@@ -1,11 +1,11 @@
 // MATERIAL - UI
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 
 // PROJECT IMPORTS
 import theme from "@/themes/theme";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 
 export const CodeVerificationEmailSection = styled(Typography)(() => ({
   display: "flex",

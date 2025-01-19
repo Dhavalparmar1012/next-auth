@@ -2,7 +2,10 @@
 import React, { useState } from "react";
 import * as Yup from "yup";
 import Link from "next/link";
+import { toast } from "react-toastify";
+import { signIn } from "next-auth/react";
 import { useFormik } from "formik";
+import { useRouter } from "next/navigation";
 
 // MATERIAL - UI
 import Box from "@mui/material/Box";
@@ -33,6 +36,8 @@ const validationSchema = Yup.object({
 });
 
 const Login = () => {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = useState(false);
 
   const isSmallScreen = useMediaQuery((theme: Theme) =>
@@ -64,9 +69,22 @@ const Login = () => {
   // Submit handler
   const handleSubmitForm = async (values: typeof initialValues) => {
     try {
-      console.log(values);
+      const response = await signIn("login", {
+        redirect: false,
+        email: values.email,
+        password: values.password,
+      });
+      if (response?.error) {
+        toast.error("Invalid Credentials");
+        return;
+      } else {
+        toast.success("Login successful!");
+        router.replace("/signup");
+      }
     } catch (error) {
-      console.log(error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +188,7 @@ const Login = () => {
           Log In
         </AuthenticationSubmitButton>
 
-        <Grid container spacing={2} sx={{ mt: 3 }}>
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
           <Grid item xs={12} sm={6}>
             <Link href="/signup">
               <AuthenticationOptionButton fullWidth>

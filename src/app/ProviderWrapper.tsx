@@ -1,5 +1,6 @@
 "use client";
-import { ReactElement } from "react";
+import { ReactElement, useEffect, useState } from "react";
+import { ToastContainer } from "react-toastify";
 import { CacheProvider, EmotionCache } from "@emotion/react";
 
 // MATERIAL - UI
@@ -9,9 +10,8 @@ import { ThemeProvider } from "@mui/material";
 // PROJECT IMPORTS
 import "./globals.css";
 import theme from "@/themes/theme";
-import createEmotionCache from "@/themes/createEmotion";
-import { ToastContainer } from "react-toastify";
 import ScrollTop from "@/layout/ScrolllTop";
+import createEmotionCache from "@/themes/createEmotion";
 
 const clientSideEmotionCache = createEmotionCache();
 
@@ -24,6 +24,17 @@ const ProviderWrapper = ({
   children,
   emotionCache = clientSideEmotionCache,
 }: RootLayoutProps) => {
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure this component is only rendered on the client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return null; // Avoid rendering until the client is ready
+  }
+
   return (
     <CacheProvider value={emotionCache}>
       <ThemeProvider theme={theme}>

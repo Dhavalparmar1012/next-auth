@@ -1,18 +1,17 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as Yup from "yup";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // MATERIAL - UI
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
-import Email from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import { Theme } from "@mui/material/styles";
-import PersonIcon from "@mui/icons-material/Person";
+import Typography from "@mui/material/Typography";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -25,6 +24,7 @@ import {
   AuthenticationOptionButton,
   AuthenticationSubmitButton,
   AuthenticationTitle,
+  CodeVerificationEmailSection,
 } from "./Authentication.styled";
 
 // SERVICES
@@ -32,15 +32,17 @@ import { AuthServices } from "@/services/authuser/authuser.services";
 
 // Validation schema
 const validationSchema = Yup.object({
-  name: Yup.string().required("Name is required"),
-  email: Yup.string()
-    .email("Invalid email address")
-    .required("Email is required"),
   password: Yup.string().required("Password is required"),
+  cPassword: Yup.string()
+    .required("Confirm password is required")
+    .oneOf([Yup.ref("password"), ""], "New password does not match"),
 });
 
-const Signup = () => {
+const ResetPassword = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email");
+
   const [showPassword, setShowPassword] = useState(false);
 
   const isSmallScreen = useMediaQuery((theme: Theme) =>
@@ -48,9 +50,8 @@ const Signup = () => {
   );
 
   const initialValues = {
-    name: "",
-    email: "",
     password: "",
+    cPassword: "",
   };
 
   const {
@@ -73,12 +74,13 @@ const Signup = () => {
   // Submit handler
   const handleSubmitForm = async (values: typeof initialValues) => {
     try {
-      const response = await AuthServices.registerUser(values);
-      if (typeof response !== "string" && response.success) {
-        toast.success("User registered successfully");
-        router.push("/");
+      const res = await AuthServices.resetPassword(email, values.password);
+
+      if (typeof res !== "string" && res.success) {
+        toast.success("Password reset successfully");
+        router.push(`/`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         toast.error(error.message);
       }
@@ -87,6 +89,27 @@ const Signup = () => {
     }
   };
 
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    // Adding event listener to prevent back navigation
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = () => {
+      window.history.pushState(null, "", window.location.href);
+      router.push("/login");
+    };
+
+    // Optional: Preventing the page from being unloaded (optional for extra safety)
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [router]);
   return (
     <Box
       sx={{
@@ -98,7 +121,7 @@ const Signup = () => {
       <AuthenticationBgBlueCircle />
       <AuthenticationBgOrangeCircle />
 
-      {/* Signup Card */}
+      {/* Verify otp Card */}
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -113,59 +136,18 @@ const Signup = () => {
           padding: 4,
         }}
       >
-        <AuthenticationTitle variant="h4">Sign up</AuthenticationTitle>
+        <AuthenticationTitle variant="h4">
+          Reset Your Password
+        </AuthenticationTitle>
 
-        <FormInput
-          id="name"
-          name="name"
-          label="Name"
-          value={values.name}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          error={touched.name && Boolean(errors.name)}
-          helperText={touched.name ? errors.name : undefined}
-          InputLabelProps={{ style: { color: "#e5e5e5" } }}
-          InputProps={{
-            style: {
-              backgroundColor: "rgba(255,255,255,0.07)",
-              color: "#fff",
-            },
-            endAdornment: (
-              <InputAdornment position="end">
-                <PersonIcon color="primary" />
-              </InputAdornment>
-            ),
-          }}
-          variant="filled"
-          sx={{ mb: 3 }}
-          required
-        />
-        <FormInput
-          type="email"
-          id="email"
-          name="email"
-          label="Email"
-          value={values.email}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          error={touched.email && Boolean(errors.email)}
-          helperText={touched.email ? errors.email : undefined}
-          InputLabelProps={{ style: { color: "#e5e5e5" } }}
-          InputProps={{
-            style: {
-              backgroundColor: "rgba(255,255,255,0.07)",
-              color: "#fff",
-            },
-            endAdornment: (
-              <InputAdornment position="end">
-                <Email color="primary" />
-              </InputAdornment>
-            ),
-          }}
-          variant="filled"
-          sx={{ mb: 3 }}
-          required
-        />
+        <CodeVerificationEmailSection>
+          <Typography variant="body2" fontWeight={500} color="text.secondary">
+            Email:
+          </Typography>
+          <Typography variant="body2" fontWeight={600} color="text.primary">
+            {email}
+          </Typography>
+        </CodeVerificationEmailSection>
 
         <FormInput
           type={showPassword ? "text" : "password"}
@@ -202,41 +184,55 @@ const Signup = () => {
           required
         />
 
+        <FormInput
+          type={showPassword ? "text" : "password"}
+          id="cPassword"
+          name="cPassword"
+          label="Confirm Password"
+          value={values.cPassword}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          error={touched.cPassword && Boolean(errors.cPassword)}
+          helperText={touched.cPassword ? errors.cPassword : undefined}
+          InputLabelProps={{ style: { color: "#e5e5e5" } }}
+          InputProps={{
+            style: {
+              backgroundColor: "rgba(255,255,255,0.07)",
+              color: "#fff",
+            },
+            endAdornment: (
+              <InputAdornment
+                position="end"
+                sx={{ cursor: "pointer" }}
+                onClick={() => setShowPassword((s) => !s)}
+              >
+                {showPassword ? (
+                  <LockOpenIcon color="primary" />
+                ) : (
+                  <LockIcon color="primary" />
+                )}
+              </InputAdornment>
+            ),
+          }}
+          variant="filled"
+          sx={{ mb: 4 }}
+          required
+        />
+
         <AuthenticationSubmitButton
+          fullWidth
           type="submit"
           variant="contained"
           disabled={isSubmitting}
-          fullWidth
         >
-          Sign up
+          Submit
         </AuthenticationSubmitButton>
 
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={12}>
             <Link href="/">
-              <AuthenticationOptionButton
-                fullWidth
-                sx={{
-                  backgroundColor: "rgba(255,255,255,0.27)",
-                  color: "#eaf0fb",
-                  "&:hover": { backgroundColor: "rgba(255,255,255,0.47)" },
-                }}
-              >
-                Login
-              </AuthenticationOptionButton>
-            </Link>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Link href="/forgot-password">
-              <AuthenticationOptionButton
-                fullWidth
-                sx={{
-                  backgroundColor: "rgba(255,255,255,0.27)",
-                  color: "#eaf0fb",
-                  "&:hover": { backgroundColor: "rgba(255,255,255,0.47)" },
-                }}
-              >
-                Forgot Password?
+              <AuthenticationOptionButton fullWidth>
+                Not received Code?
               </AuthenticationOptionButton>
             </Link>
           </Grid>
@@ -246,4 +242,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default ResetPassword;

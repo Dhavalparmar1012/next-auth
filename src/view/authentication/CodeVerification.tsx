@@ -1,12 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import OtpInput from "react18-input-otp";
-import { useSearchParams } from "next/navigation";
+import { toast } from "react-toastify";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // MATERIAL - UI
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
+import Stack from "@mui/material/Stack";
 import { Theme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -16,22 +17,68 @@ import theme from "@/themes/theme";
 import {
   AuthenticationBgBlueCircle,
   AuthenticationBgOrangeCircle,
-  AuthenticationOptionButton,
   AuthenticationSubmitButton,
   AuthenticationTitle,
   CodeVerificationEmailSection,
 } from "./Authentication.styled";
 
+// SERVICES
+import { AuthServices } from "@/services/authuser/authuser.services";
+
 const CodeVerification = () => {
+  const router = useRouter();
+
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
 
   const [otp, setOtp] = useState<string>("");
   const [timer, setTimer] = useState<number>(300);
+  const [isResending, setIsResending] = useState<boolean>(false);
 
   const isSmallScreen = useMediaQuery((theme: Theme) =>
     theme.breakpoints.down("sm")
   );
+
+  const handleVerifyOtp = async () => {
+    try {
+      const res = await AuthServices.otpVerification(otp);
+
+      if (typeof res !== "string" && res.success) {
+        toast.success("OTP verified successfully");
+        router.push(`/reset-password?email=${email}`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsResending(true);
+    try {
+      const res = await AuthServices.forgotPasswordEmail(email);
+
+      if (typeof res !== "string" && res.success) {
+        toast.success("OTP sent to email");
+        setTimer(300);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(
+      remainingSeconds
+    ).padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     if (timer > 0) {
@@ -96,17 +143,50 @@ const CodeVerification = () => {
           }}
         />
 
-        <AuthenticationSubmitButton fullWidth variant="contained">
+        <AuthenticationSubmitButton
+          fullWidth
+          variant="contained"
+          onClick={handleVerifyOtp}
+        >
           Submit
         </AuthenticationSubmitButton>
 
-        <Grid container spacing={2} sx={{ mt: 3 }}>
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
           <Grid item xs={12} sm={12}>
-            <Link href="/">
-              <AuthenticationOptionButton fullWidth>
-                Not received Code?
-              </AuthenticationOptionButton>
-            </Link>
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="baseline"
+            >
+              <Typography color="white">Not received Code?</Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: "white",
+                  minWidth: 85,
+                  ml: 2,
+                  textDecoration: "none",
+                  cursor:
+                    timer === 0 && !isResending ? "pointer" : "not-allowed",
+                }}
+                color={
+                  isResending
+                    ? "text.disabled"
+                    : timer === 0
+                    ? "primary"
+                    : "text.disabled"
+                }
+                onClick={
+                  timer === 0 && !isResending ? handleResendOtp : undefined
+                }
+              >
+                {isResending
+                  ? "Resending..."
+                  : timer > 0
+                  ? `Resend code in ${formatTime(timer)}`
+                  : "Resend code"}
+              </Typography>
+            </Stack>
           </Grid>
         </Grid>
       </Box>

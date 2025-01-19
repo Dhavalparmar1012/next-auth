@@ -2,7 +2,9 @@
 import React from "react";
 import * as Yup from "yup";
 import Link from "next/link";
+import { toast } from "react-toastify";
 import { useFormik } from "formik";
+import { useRouter } from "next/navigation";
 
 // MATERIAL - UI
 import Box from "@mui/material/Box";
@@ -22,6 +24,9 @@ import {
   AuthenticationOptionButton,
 } from "./Authentication.styled";
 
+// SERVICES
+import { AuthServices } from "@/services/authuser/authuser.services";
+
 const validationSchema = Yup.object({
   email: Yup.string()
     .email("Invalid email address")
@@ -29,6 +34,8 @@ const validationSchema = Yup.object({
 });
 
 const ForgotPassword = () => {
+  const router = useRouter();
+
   const isSmallScreen = useMediaQuery((theme: Theme) =>
     theme.breakpoints.down("sm")
   );
@@ -57,9 +64,15 @@ const ForgotPassword = () => {
   // Submit handler
   const handleSubmitForm = async (values: { email: string }) => {
     try {
-      console.log(values);
+      const response = await AuthServices.forgotPasswordEmail(values.email);
+      if (typeof response !== "string" && response.success) {
+        toast.success("OTP sent to email");
+        router.push(`/verify-otp?email=${values.email}`);
+      }
     } catch (error) {
-      console.log(error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +142,7 @@ const ForgotPassword = () => {
           Continue
         </AuthenticationSubmitButton>
 
-        <Grid container spacing={2} sx={{ mt: 3 }}>
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
           <Grid item xs={12} sm={12}>
             <Link href="/">
               <AuthenticationOptionButton fullWidth>
